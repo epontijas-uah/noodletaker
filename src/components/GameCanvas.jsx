@@ -11,13 +11,23 @@ export default function GameCanvas() {
   const [results, setResults] = useState([]);
   const [assets, setAssets] = useState(null);
 
-  useEffect(() => {
-    loadGameAssets().then(a => {
-      setAssets(a);
-      // Dibuja el estado inicial del canvas una vez cargados los assets
-      const engine = new GameEngine(canvasRef.current, a, () => {});
-      engine.drawStatic();
-    }).catch(() => {});
+  useEffect(() => {  
+    console.log("1. Montando GameCanvas...");  
+      
+    loadGameAssets()  
+      .then(loadedAssets => {  
+        console.log("2. Assets cargados con éxito:", loadedAssets);  
+        setAssets(loadedAssets);  
+          
+        // Dibujado inicial para que no se vea vacío  
+        if (canvasRef.current) {  
+          const tempEngine = new GameEngine(canvasRef.current, loadedAssets, () => {});  
+          tempEngine._draw();  
+        }  
+      })  
+      .catch(err => {  
+        console.error("X. ERROR CARGANDO ASSETS:", err);  
+      });  
   }, []);
 
   const startGame = () => {
