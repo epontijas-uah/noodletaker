@@ -1,4 +1,4 @@
-import { GRAVITY, JUMP_FORCE, GROUND_Y, CANVAS_WIDTH } from './constants.js';
+import { GRAVITY, JUMP_FORCE, GROUND_Y } from './constants.js';
 
 export class Player {
   constructor({ id, label, color, x, controls, spriteKey }) {
@@ -15,13 +15,11 @@ export class Player {
     this.controls = controls;
     this.finished = false;
     this.finishTime = null;
-    this.spriteKey = spriteKey; // 'p1' | 'p2'
-
-    // Animación
+    this.spriteKey = spriteKey;
+    this.facing = 1;
     this.frame = 0;
     this.frameTimer = 0;
-    this.frameDuration = 120; // ms por frame
-    this.facing = 1; // 1 = derecha, -1 = izquierda
+    this.frameDuration = 120;
   }
 
   update(keys, platforms, finishX, deltaTime = 16) {
@@ -30,34 +28,24 @@ export class Player {
     const speed = 4;
     let moving = false;
 
-    // Horizontal movement
     if (keys[this.controls.left]) {
-      this.vx = -speed;
-      this.facing = -1;
-      moving = true;
+      this.vx = -speed; this.facing = -1; moving = true;
     } else if (keys[this.controls.right]) {
-      this.vx = speed;
-      this.facing = 1;
-      moving = true;
+      this.vx = speed; this.facing = 1; moving = true;
     } else {
       this.vx = 0;
     }
 
-    // Jump
     if (keys[this.controls.jump] && this.onGround) {
       this.vy = JUMP_FORCE;
       this.onGround = false;
     }
 
-    // Gravity
     this.vy += GRAVITY;
     this.x += this.vx;
     this.y += this.vy;
-
-    // Don't go left of screen
     if (this.x < 0) this.x = 0;
 
-    // Platform collision
     this.onGround = false;
     for (const plat of platforms) {
       if (
@@ -73,21 +61,19 @@ export class Player {
       }
     }
 
-    // Finish line
     if (this.x + this.width >= finishX && !this.finished) {
       this.finished = true;
       this.finishTime = Date.now();
     }
 
-    // Animación: avanza frame si se mueve y está en suelo
     if (moving && this.onGround) {
       this.frameTimer += deltaTime;
       if (this.frameTimer >= this.frameDuration) {
         this.frameTimer = 0;
-        this.frame = (this.frame + 1) % 4; // 4 frames de walk
+        this.frame = (this.frame + 1) % 4;
       }
     } else {
-      this.frame = 3; // idle frame
+      this.frame = 3;
       this.frameTimer = 0;
     }
   }
@@ -96,43 +82,41 @@ export class Player {
     const sx = this.x - cameraX;
     const sprite = assets?.players?.[this.spriteKey];
 
+    console.log('sprite:', this.spriteKey, sprite);  
+    console.log('image:', sprite?.image);  
+    console.log('naturalWidth:', sprite?.image?.naturalWidth);
+
     if (sprite?.image) {
       const { image, frameWidth, frameHeight } = sprite;
 
-      // Escala para que encaje con el hitbox
-      const drawW = this.width * 1.2;
-      const drawH = this.height * 1.2;
+      // Comprueba cuántos frames caben realmente en la imagen
+      const totalFrames = Math.floor(image.naturalWidth / frameWidth);
+      const safeFrame = this.frame % Math.max(totalFrames, 1);
+
+      const drawW = this.width * 1.5;
+      const drawH = this.height * 1.5;
       const drawX = sx - (drawW - this.width) / 2;
       const drawY = this.y - (drawH - this.height);
 
       ctx.save();
-
-      // Flip horizontal si va a la izquierda
+      // Flip sin ctx.scale anidado: usamos translate manual
       if (this.facing === -1) {
         ctx.translate(drawX + drawW / 2, 0);
         ctx.scale(-1, 1);
         ctx.translate(-(drawX + drawW / 2), 0);
       }
-
       ctx.drawImage(
         image,
-        this.frame * frameWidth, 0,  // frame actual del spritesheet
-        frameWidth, frameHeight,      // tamaño del frame fuente
-        drawX, drawY,                 // posición en canvas
-        drawW, drawH                  // tamaño dibujado
+        safeFrame * frameWidth, 0,
+        frameWidth, frameHeight,
+        drawX, drawY,
+        drawW, drawH
       );
-
       ctx.restore();
     } else {
-      // Fallback: rectángulo con ojos
+      // Fallback rectángulo
       ctx.fillStyle = this.color;
       ctx.fillRect(sx, this.y, this.width, this.height);
-      ctx.fillStyle = 'white';
-      ctx.fillRect(sx + 6, this.y + 8, 8, 8);
-      ctx.fillRect(sx + 18, this.y + 8, 8, 8);
-      ctx.fillStyle = '#111';
-      ctx.fillRect(sx + 9, this.y + 11, 4, 4);
-      ctx.fillRect(sx + 21, this.y + 11, 4, 4);
       ctx.fillStyle = 'white';
       ctx.font = 'bold 11px sans-serif';
       ctx.textAlign = 'center';

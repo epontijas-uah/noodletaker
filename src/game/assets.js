@@ -1,3 +1,5 @@
+console.log("!!! ASSETS.JS CARGADO");
+
 const PLAYER_SPRITES = {
   p1: {
     src: '/ninja1.png',
@@ -23,16 +25,14 @@ function loadImage(src) {
 }
 
 export async function loadGameAssets() {
-  const [
-    finishLine,
-    p1Image,
-    p2Image,
-  ] = await Promise.all([
+  console.log('Cargando assets...');
+  const [finishLine, p1Image, p2Image] = await Promise.all([
     loadImage('/finish.png'),
     loadImage(PLAYER_SPRITES.p1.src),
     loadImage(PLAYER_SPRITES.p2.src),
   ]);
-
+  console.log('Assets cargados:', { finishLine, p1Image, p2Image });
+  console.log('p1 naturalWidth:', p1Image.naturalWidth);
   return {
     finishLine,
     players: {

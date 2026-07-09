@@ -1,0 +1,33 @@
+.canvas-wrapper {
+  position: relative;
+}
+
+.game-canvas {
+  display: block;
+  max-width: 95vw;
+  max-height: calc(100vh - 120px);
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  backdrop-filter: blur(4px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: white;
+  font-size: 18px;
+}
+
+.overlay button {
+  padding: 10px 28px;
+  font-size: 14px;
+  font-weight: 700;
+  background: #6366f1;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
