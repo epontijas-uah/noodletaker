@@ -1,17 +1,46 @@
-import GameCanvas from './components/GameCanvas';
-import './App.css';
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider} from "./context/AuthContext";
+import { useAuth } from "./context/useAuth";
+import Login from "./pages/Login";
+import Game from "./pages/Game";
+import MultiplayerTest from "./pages/MultiplayerTest";
+
+function ProtectedRoute({ children }) {
+  const { isAuthenticated } = useAuth();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+}
 
 export default function App() {
   return (
-    <div className="app-wrapper">
-      <h1 className="app-title">🍜 Noodletaker</h1>
-      <p className="app-subtitle">
-        <span className="p1">P1: A / D / W</span>
-      </p>
-      <p className="app-subtitle">
-        <span className="p2">P2: ← / → / ↑</span>
-      </p>
-      <GameCanvas />
-    </div>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Login />} />
+
+          <Route
+            path="/game"
+            element={
+              <ProtectedRoute>
+                <Game />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/multiplayer-test"
+            element={
+              <ProtectedRoute>
+                <MultiplayerTest />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
