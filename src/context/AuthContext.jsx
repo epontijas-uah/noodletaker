@@ -1,46 +1,51 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useEffect, useState } from "react";
 import { connectSocket, disconnectSocket } from "../services/socket";
 
-const AuthContext = createContext(null);
+export const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-    const [user, setUser] = useState(null);
-    const [token, setToken] = useState(null);
+  const [user, setUser] = useState(localStorage.getItem("username"));
+  const [token, setToken] = useState(localStorage.getItem("token"));
 
-    // Al cargar la app, recuperar sesión guardada
-    useEffect(() => {
-        const savedToken = localStorage.getItem("token");
-        const savedUser = localStorage.getItem("username");
-        if (savedToken && savedUser) {
-            setToken(savedToken);
-            setUser(savedUser);
-            connectSocket(savedToken);
-        }
-    }, []);
+  useEffect(() => {
+    const savedToken = localStorage.getItem("token");
 
-    function login(username, token) {
-        localStorage.setItem("token", token);
-        localStorage.setItem("username", username);
-        setToken(token);
-        setUser(username);
-        connectSocket(token);
+    if (savedToken) {
+      connectSocket(savedToken);
     }
+  }, []);
 
-    function logout() {
-        localStorage.removeItem("token");
-        localStorage.removeItem("username");
-        setToken(null);
-        setUser(null);
-        disconnectSocket();
-    }
+  function login(username, receivedToken) {
+    localStorage.setItem("username", username);
+    localStorage.setItem("token", receivedToken);
 
-    return (
-        <AuthContext.Provider value={{ user, token, login, logout }}>
-            {children}
-        </AuthContext.Provider>
-    );
-}
+    setUser(username);
+    setToken(receivedToken);
 
-export function useAuth() {
-    return useContext(AuthContext);
+    connectSocket(receivedToken);
+  }
+
+  function logout() {
+    localStorage.removeItem("username");
+    localStorage.removeItem("token");
+
+    setUser(null);
+    setToken(null);
+
+    disconnectSocket();
+  }
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        login,
+        logout,
+        isAuthenticated: Boolean(token)
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 }
