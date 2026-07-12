@@ -88,8 +88,9 @@ export class GameEngine {
     for (const player of this.players) {
       player.update(this.keys, this.platforms, FINISH_X);
     }
-    const leadX = Math.max(...this.players.map(p => p.x));
-    const targetCam = leadX - GAME_WIDTH * 0.35;
+    const localPlayer = this.players.find(p => p.isLocalControlled);
+    const focusX = localPlayer ? localPlayer.x : Math.max(...this.players.map(p => p.x));
+    const targetCam = focusX - GAME_WIDTH * 0.35;
     this.cameraX = Math.max(0, Math.min(targetCam, LEVEL_WIDTH - GAME_WIDTH));
   }
 

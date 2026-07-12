@@ -19,6 +19,8 @@ export default function GameCanvas() {
   const [roomPlayers, setRoomPlayers] = useState([]);
   const [assignedPlayer, setAssignedPlayer] = useState(null);
   const [localPlayerId, setLocalPlayerId] = useState(1);
+  const [localReady, setLocalReady] = useState(false);
+  const [waitingForOther, setWaitingForOther] = useState(false);
 
   useEffect(() => {
     loadGameAssets()
@@ -130,22 +132,55 @@ export default function GameCanvas() {
     };
   }, [user]);
 
-  const startGame = () => {
+  const beginGame = () => {
     if (!assets || !canvasRef.current) return;
 
     engineRef.current?.stop();
     engineRef.current = new GameEngine(canvasRef.current, assets, (res) => {
       setResults(res);
       setStatus('finished');
+
+      const socket = getSocket();
+      if (socket && socket.connected) {
+        socket.emit('game_finished', {
+          roomId: ROOM_ID,
+          playerId: localPlayerId,
+          results: res,
+        });
+      }
     }, { localPlayerId });
+
     setStatus('playing');
     setResults([]);
+    setWaitingForOther(false);
     engineRef.current.start();
   };
 
-  useEffect(() => {
-    if (status !== 'playing' || !engineRef.current) return;
+  const requestStart = () => {
+    const socket = getSocket();
+    if (!socket || !socket.connected) return;
 
+    setLocalReady(true);
+    setWaitingForOther(true);
+    setStatus('waiting');
+
+    socket.emit('player_ready', {
+      roomId: ROOM_ID,
+      playerId: localPlayerId,
+    });
+  };
+
+  const requestRestart = () => {
+    const socket = getSocket();
+    if (!socket || !socket.connected) return;
+
+    setStatus('waiting');
+    setLocalReady(true);
+    setWaitingForOther(true);
+    socket.emit('restart_game', { roomId: ROOM_ID });
+  };
+
+  useEffect(() => {
     const socket = getSocket();
     if (!socket) return;
 
@@ -162,27 +197,62 @@ export default function GameCanvas() {
       }
     };
 
+    const handleGameFinished = (data) => {
+      if (!data?.results) return;
+      console.log('[Sync] Partida terminada por jugador', data.playerId);
+      if (engineRef.current) {
+        engineRef.current.stop();
+      }
+      setResults(data.results);
+      setStatus('finished');
+      setLocalReady(false);
+      setWaitingForOther(false);
+    };
+
+    const handleRestartGame = () => {
+      console.log('[Sync] Reiniciar partida remoto');
+      setLocalReady(false);
+      setWaitingForOther(false);
+      beginGame();
+    };
+
+    const handleGameStarted = () => {
+      console.log('[Sync] Partida iniciada');
+      setLocalReady(false);
+      setWaitingForOther(false);
+      beginGame();
+    };
+
     socket.on('player_move', handleRemotePlayerMove);
     socket.on('player_moved', handleRemotePlayerMove);
+    socket.on('game_finished', handleGameFinished);
+    socket.on('restart_game', handleRestartGame);
+    socket.on('game_started', handleGameStarted);
 
-    syncInterval = setInterval(() => {
-      if (engineRef.current) {
-        const state = engineRef.current.getLocalPlayerState();
-        if (state && JSON.stringify(state) !== JSON.stringify(lastEmittedState)) {
-          lastEmittedState = state;
-          console.log('[Sync] Emitiendo movimiento local', state);
-          socket.emit('player_move', {
-            roomId: ROOM_ID,
-            playerId: localPlayerId,
-            state,
-          });
+    if (status === 'playing') {
+      syncInterval = setInterval(() => {
+        if (engineRef.current) {
+          const state = engineRef.current.getLocalPlayerState();
+          if (state && JSON.stringify(state) !== JSON.stringify(lastEmittedState)) {
+            lastEmittedState = state;
+            console.log('[Sync] Emitiendo movimiento local', state);
+            socket.emit('player_move', {
+              roomId: ROOM_ID,
+              playerId: localPlayerId,
+              state,
+            });
+          }
         }
-      }
-    }, 30);
+      }, 30);
+    }
 
     return () => {
       if (syncInterval) clearInterval(syncInterval);
       socket.off('player_move', handleRemotePlayerMove);
+      socket.off('player_moved', handleRemotePlayerMove);
+      socket.off('game_finished', handleGameFinished);
+      socket.off('restart_game', handleRestartGame);
+      socket.off('game_started', handleGameStarted);
     };
   }, [status, localPlayerId]);
 
@@ -213,7 +283,14 @@ export default function GameCanvas() {
 
       {status === 'idle' && (
         <div className="overlay">
-          <button onClick={startGame}>▶ Iniciar</button>
+          <button onClick={requestStart} disabled={localReady}>
+            ▶ Iniciar
+          </button>
+        </div>
+      )}
+      {status === 'waiting' && (
+        <div className="overlay">
+          <p>Preparado, esperando al otro jugador...</p>
         </div>
       )}
 
@@ -223,7 +300,7 @@ export default function GameCanvas() {
           {results.map((p, i) => (
             <p key={p.id}>{i === 0 ? '🥇' : '🥈'} {p.label}</p>
           ))}
-          <button onClick={startGame}>Jugar de nuevo</button>
+          <button onClick={requestRestart}>Jugar de nuevo</button>
         </div>
       )}
     </div>
