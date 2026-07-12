@@ -1,7 +1,7 @@
 import { GRAVITY, JUMP_FORCE, GROUND_Y } from './constants.js';
 
 export class Player {
-  constructor({ id, label, color, x, controls, spriteKey }) {
+  constructor({ id, label, color, x, controls, spriteKey, isLocalControlled = false }) {
     this.id = id;
     this.label = label;
     this.color = color;
@@ -20,6 +20,7 @@ export class Player {
     this.frame = 0;
     this.frameTimer = 0;
     this.frameDuration = 120;
+    this.isLocalControlled = isLocalControlled;
   }
 
   update(keys, platforms, finishX, deltaTime = 16) {
@@ -28,17 +29,21 @@ export class Player {
     const speed = 4;
     let moving = false;
 
-    if (keys[this.controls.left]) {
-      this.vx = -speed; this.facing = -1; moving = true;
-    } else if (keys[this.controls.right]) {
-      this.vx = speed; this.facing = 1; moving = true;
+    if (this.isLocalControlled) {
+      if (keys[this.controls.left]) {
+        this.vx = -speed; this.facing = -1; moving = true;
+      } else if (keys[this.controls.right]) {
+        this.vx = speed; this.facing = 1; moving = true;
+      } else {
+        this.vx = 0;
+      }
+
+      if (keys[this.controls.jump] && this.onGround) {
+        this.vy = JUMP_FORCE;
+        this.onGround = false;
+      }
     } else {
       this.vx = 0;
-    }
-
-    if (keys[this.controls.jump] && this.onGround) {
-      this.vy = JUMP_FORCE;
-      this.onGround = false;
     }
 
     this.vy += GRAVITY;
@@ -117,7 +122,7 @@ export class Player {
       // Fallback rectángulo
       ctx.fillStyle = this.color;
       ctx.fillRect(sx, this.y, this.width, this.height);
-      ctx.fillStyle = 'white';
+      ctx.fillStyle = '#000000';
       ctx.font = 'bold 11px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(this.label, sx + this.width / 2, this.y + this.height - 6);

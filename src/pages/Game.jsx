@@ -1,38 +1,10 @@
-import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
-import { getSocket } from "../services/socket";
 import GameCanvas from "../components/GameCanvas";
 
 export default function Game() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
-
-    useEffect(() => {
-        if (!user) {
-            navigate("/");
-            return;
-        }
-
-        const socket = getSocket();
-        if (!socket) return;
-
-        // Unirse a una sala de prueba
-        socket.emit("join_room", "partida1");
-
-        socket.on("room_update", (players) => {
-            console.log("[Sala] Jugadores conectados:", players);
-        });
-
-        socket.on("game_action", ({ from, action }) => {
-            console.log(`[Acción] ${from}:`, action);
-        });
-
-        return () => {
-            socket.off("room_update");
-            socket.off("game_action");
-        };
-    }, [user]);
 
     return (
         <div>

@@ -3,36 +3,80 @@ import { Player } from './Player.js';
 import { buildLevel, LEVEL_WIDTH, FINISH_X } from './levels.js';
 
 export class GameEngine {
-  constructor(canvas, assets, onFinish) {
+  constructor(canvas, assets, onFinish, options = {}) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.assets = assets;
     this.onFinish = onFinish;
     this.keys = {};
-    this.players = PLAYERS_CONFIG.map(cfg => new Player(cfg));
+    this.localPlayerId = options.localPlayerId ?? 1;
+    this.players = PLAYERS_CONFIG.map(cfg => new Player({
+      ...cfg,
+      isLocalControlled: cfg.id === this.localPlayerId,
+    }));
     this.platforms = buildLevel();
     this.cameraX = 0;
     this.animId = null;
     this.results = [];
+    this.boundHandleKeyDown = (e) => {
+      this.keys[e.key] = true;
+      e.preventDefault();
+    };
+    this.boundHandleKeyUp = (e) => {
+      this.keys[e.key] = false;
+    };
   }
 
   start() {
-    window.addEventListener('keydown', e => { this.keys[e.key] = true; e.preventDefault(); });
-    window.addEventListener('keyup',   e => { this.keys[e.key] = false; });
+    window.addEventListener('keydown', this.boundHandleKeyDown);
+    window.addEventListener('keyup', this.boundHandleKeyUp);
     this._loop();
   }
 
   stop() {
     if (this.animId) cancelAnimationFrame(this.animId);
+    window.removeEventListener('keydown', this.boundHandleKeyDown);
+    window.removeEventListener('keyup', this.boundHandleKeyUp);
+    this.animId = null;
+  }
+
+  updateRemotePlayer(playerId, state) {
+    const player = this.players.find(p => p.id === playerId);
+    if (player && !player.isLocalControlled) {
+      player.x = state.x ?? player.x;
+      player.y = state.y ?? player.y;
+      player.vx = state.vx ?? player.vx;
+      player.vy = state.vy ?? player.vy;
+      player.facing = state.facing ?? player.facing;
+      player.onGround = state.onGround ?? player.onGround;
+      if (state.finished !== undefined) player.finished = state.finished;
+      if (state.finishTime !== undefined) player.finishTime = state.finishTime;
+    }
+  }
+
+  getLocalPlayerState() {
+    const player = this.players.find(p => p.isLocalControlled);
+    if (!player) return null;
+    return {
+      id: player.id,
+      x: player.x,
+      y: player.y,
+      vx: player.vx,
+      vy: player.vy,
+      facing: player.facing,
+      onGround: player.onGround,
+      finished: player.finished,
+      finishTime: player.finishTime,
+    };
   }
 
   _loop() {
     this._update();
     this._draw();
 
-    const finished = this.players.filter(p => p.finished);
-    if (finished.length === this.players.length && this.results.length === 0) {
-      this.results = [...finished].sort((a, b) => a.finishTime - b.finishTime);
+    const localPlayer = this.players.find(p => p.isLocalControlled);
+    if (localPlayer && localPlayer.finished && this.results.length === 0) {
+      this.results = [localPlayer, ...this.players.filter(p => !p.isLocalControlled)];
       this.onFinish(this.results);
       return;
     }
